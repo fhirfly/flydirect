@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@lit-protocol/lit-node-client": "^3.0.2",
+    "@types/fhir": "^0.0.38",
     "ethers": "^6.8.0",
     "lit-share-modal-v3": "^0.0.96",
     "next": "13.5.6",
