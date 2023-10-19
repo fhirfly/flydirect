@@ -1,6 +1,13 @@
 import Image from 'next/image'
 
 export default function Home() {
+
+  const mainStyle = {
+    backgroundImage: `url('/Users/andrewcho/Documents/flydirect/img/_447c4e6b-efd8-41ab-88d6-14e0acb4708e.jpeg')`, // Set the background image here
+    backgroundSize: 'cover', // You can adjust this property based on your needs
+    backgroundRepeat: 'no-repeat',
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
