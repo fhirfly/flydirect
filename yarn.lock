@@ -1493,6 +1493,11 @@
   dependencies:
     tslib "^2.4.0"
 
+"@types/fhir@^0.0.38":
+  version "0.0.38"
+  resolved "https://registry.yarnpkg.com/@types/fhir/-/fhir-0.0.38.tgz#07b9240ffbb0e6368b191f7145c63a010dff36df"
+  integrity sha512-0ia8Ng9OR6yI3J1+TkZxAzp02oarQLfM0mGBUjVf1+7X+hD9UW7TNz7/heRP5QQ9evyRz89Ok/IxSuubx2TzMg==
+
 "@types/json5@^0.0.29":
   version "0.0.29"
   resolved "https://registry.yarnpkg.com/@types/json5/-/json5-0.0.29.tgz#ee28707ae94e11d2b827bcbe5270bcea7f3e71ee"
