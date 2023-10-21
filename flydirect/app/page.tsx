@@ -3,7 +3,6 @@ import Test from "./components/test";
 import React, { useState } from "react";
 
 import { checkAndSignAuthMessage } from "@lit-protocol/lit-node-client";
-import * as LitJsSdk from "@lit-protocol/lit-node-client";
 import NewMessageForm from "./components/NewMessage";
 
 export default function Home() {
@@ -18,9 +17,6 @@ export default function Home() {
     } catch (e) {
       console.error(e);
     }
-    const response = await fetch("/api/authSig");
-    const data = await response.json();
-    setAuthSig(data.authSig);
   };
 
   return (
