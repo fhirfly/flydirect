@@ -1,12 +1,12 @@
 import chokidar from 'chokidar';
 import fs from 'fs';
-import path from 'path';
 import { Web3Storage, File} from 'web3.storage';
 import LitJsSdk from '@lit-protocol/lit-node-client';
 import { v4 } from "uuid";
 import * as PushAPI from "@pushprotocol/restapi";
 import { Client } from '@xmtp/xmtp-js';
 import { ethers } from 'ethers'
+import https from 'https';
 
 // Initialize the Lit client
 const litNodeClient =new LitJsSdk.LitNodeClient({
@@ -39,6 +39,29 @@ function obtainAuthSig(){
       "address": "0x34df838f26565ebf832b7d7c1094d081679e8fe1"
     } 
 }
+function httpsRequest(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (resp) => {
+      let data = '';
+
+      // A chunk of data has been received.
+      resp.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      // The whole response has been received.
+      resp.on('end', () => {
+        resolve(data);
+      });
+
+    }).on("error", (err) => {
+      reject(err);
+    });
+  });
+}
+
+
+// Usage
 // Function to download from upload to IPFS and decrypt the file using LIT Protocol and 
 const DownloadandDecryptFile = async (url, hash) => {
   try {  
@@ -66,9 +89,6 @@ const DownloadandDecryptFile = async (url, hash) => {
     console.log('create ipfs client');
     const ipfsClient = makeStorageClient();
     console.log('get IPFS file at cid:' + url)
-    //const file = await ipfsClient.fetch(url);
-    //url = "bafybeiae7dz3gnozqcdirbfw2jxspjcpvi7ggsxligcqa3dfevtzpnxplq"
-    url = "bafkreiakbarz2546bzmy2sdwopv53uawc5fpmw7d5mrzbqy7yinogrxewm"
     const data = await ipfsClient.get(url);
     console.log(`Got a response! [${data.status}] ${data.statusText}`)
     if (!data.ok) {
@@ -81,16 +101,22 @@ const DownloadandDecryptFile = async (url, hash) => {
       console.log(`${file.cid} --  ${file.size}`)
       // Each `file` object contains `name` and `content` properties
       const fileName = file.name;     
+      const dWebLinkURL2 = 'https://' + file.cid + '.ipfs.dweb.link/' + fileName;
+      console.log(dWebLinkURL2)
+const dWebLinkURL = 'https://bafybeig5julludbtmgfrvihkrjl7yzsx4wywgptylzpwtbrrixwu6vugrq.ipfs.dweb.link/Bundle/c1cafdef-63e9-4c86-bd84-367ecaf34dc4';
+      // Example usage:      
+      const response = await httpsRequest(dWebLinkURL)
       console.log("fetched file");     
       const chainIdString = "ethereum" 
       console.log("decrypting: " + fileName)
-      const fileContents = await readFileContents(file);
+      const dc_AuthSig = authSig
+      console.log(dc_AuthSig)
       const decryptBlob = await LitJsSdk.decryptToFile( {
-          ciphertext: fileContents,          
+          ciphertext: response,          
           dataToEncryptHash: hash,
           accessControlConditions: accessControlConditions,
           chain: 'ethereum',
-          authSig: authSig
+          authSig: dc_AuthSig,
       },
       litNodeClient,
       );
@@ -104,7 +130,7 @@ const DownloadandDecryptFile = async (url, hash) => {
           console.log(`Decrypted file has been saved in 'out' directory with name: ${decryptBlob.fileName}`);
         }
       }); 
-      // Now you can work with fileContent, e.g., send it for decryption or save it to the file system
+      
     }
        
   }
@@ -114,22 +140,8 @@ const DownloadandDecryptFile = async (url, hash) => {
 }
 function readFileContents(file) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    // This event listener will be called when the reading operation is completed
-    reader.onload = function(event) {
-      // The file contents are available in event.target.result
-      resolve(event.target.result);
-    };
-
-    // This event listener will be called if there's an error reading the file
-    reader.onerror = function(event) {
-      reader.abort();
-      reject(new DOMException("Error reading file."));
-    };
-
-    // Start reading the file as text
-    reader.readAsText(file);
+    var output = fs.readFileSync(file)
+    console.log(output)
   });
 }
 
