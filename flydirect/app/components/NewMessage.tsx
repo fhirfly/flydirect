@@ -198,9 +198,9 @@ function NewMessage(props: any) {
     <form onSubmit={handleSubmit}>
       <div>
         <label htmlFor="recipient">Recipient(s) DID:</label>
-        {/* <button onClick={() => setShowShareModal(true)}>
+        {<button onClick={() => setShowShareModal(true)}>
           Set Recipient(s)
-        </button> */}
+        </button>}
       </div>
 
       <div>
@@ -226,7 +226,7 @@ function NewMessage(props: any) {
         />
       </div>
 
-      {/* <div>
+      <div>
           {showShareModal && (
             <div className={"lit-share-modal"}>
               <ShareModal
@@ -239,7 +239,7 @@ function NewMessage(props: any) {
               />
             </div>
           )}
-        </div> */}
+        </div> 
 
       <button type="submit">Send Message</button>
     </form>
