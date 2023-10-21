@@ -1,0 +1,78 @@
+{
+  "resourceType": "Bundle",
+  "type": "message",
+  "signature": {
+    "type": [
+      {
+        "system": "urn:iso-astm:E1762-95:2013",
+        "code": "1.2.840.10065.1.12.1.1",
+        "display": "Author's Signature"
+      }
+    ],
+    "when": "2023-09-29T00:00:00Z",
+    "who": {
+      "reference": "#sender-person"
+    },
+    "onBehalfOf": {
+      "reference": "#receiver-person"
+    },
+    "targetFormat": "application/fhir+json",
+    "sigFormat": "application/signature+json",
+    "data": "BASE64_ENCODED_ECDSA_SIGNATURE"
+  },
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:message-header-id",
+      "resource": {
+        "resourceType": "MessageHeader",
+        "id": "message-header-id",
+        "contained": [
+          {
+            "resourceType": "Person",
+            "id": "sender-person",
+            "identifier": [
+              {
+                "system": "https://www.w3.org/ns/did",
+                "value": "did:health:0x3214sender"
+              }
+            ]
+          },
+          {
+            "resourceType": "Person",
+            "id": "receiver-person",
+            "identifier": [
+              {
+                "system": "https://www.w3.org/ns/did",
+                "value": "did:health:02123xreceiver"
+              }
+            ]
+          }
+        ],
+        "eventCoding": {
+          "system": "http://hl7.org/fhir/message-events",
+          "code": "practitioner-notification"
+        },
+        "sender": {
+          "reference": "#sender-person"
+        },
+        "receiver": {
+          "reference": "#receiver-person"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:communication-id",
+      "resource": {
+        "resourceType": "Communication",
+        "id": "communication-id",
+        "status": "completed",
+        "topic": [{"text": "Colonoscopy Report"}],
+        "content": [
+          {
+            "contentString": "I have a patient that I am going to refer to you for a colonoscopy."
+          }
+        ]
+      }
+    }
+  ]
+}
