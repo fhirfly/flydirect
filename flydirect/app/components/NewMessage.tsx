@@ -18,9 +18,13 @@ interface FormState {
 
 function NewMessage(props: any) {
   const [showShareModal, setShowShareModal] = useState(false);
+  const [accessControlConditions, setAccessControlConditions] = useState([]);
+
 
   const onUnifiedAccessControlConditionsSelected = (shareModalOutput: any) => {
     // do things with share modal output
+    setAccessControlConditions(shareModalOutput);
+  
   };
 
   const [formData, setFormData] = useState<FormState>({
@@ -53,7 +57,7 @@ function NewMessage(props: any) {
       ],
     };
   };
-
+  const currentAccessControlConditions = accessControlConditions;
   const recipientDID = "1234";
   //     const actualRecipient: Person = {
   //       resourceType: "Person",
@@ -149,7 +153,7 @@ function NewMessage(props: any) {
   //     const chainIdString = "5";
   //     /*const { ciphertext, dataToEncryptHash } = await LitJsSdk.encryptString(
   //       {
-  //         accessControlConditions,
+  //         currentAccessControlConditions,
   //         authSig,
   //         chain: 'ethereum',
   //         dataToEncrypt: blob,
