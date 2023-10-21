@@ -7,6 +7,9 @@ import Person = fhir4b.Person;
 import Signature = fhir4b.Signature;
 import { v4 } from "uuid";
 import * as LitJsSdk from "@lit-protocol/lit-node-client";
+import * as PushAPI from "@pushprotocol/restapi";
+import { ethers } from 'ethers'
+import { Client } from '@xmtp/xmtp-js'
 import { makeStorageClient } from "../hooks/useIpfs";
 import ShareModal from "lit-share-modal-v3";
 //import { PushAPI } from '@pushprotocol/restapi'
@@ -43,6 +46,37 @@ function NewMessage(props: any) {
       [name]: value,
     });
   };
+
+  async function sendXMTP(uri, hash, address){
+  // Create the client with a `Signer` from your application
+  need the recipients wallet from access control conditions  
+  const signer = ethers.Wallet.fromMnemonic('keen clay bargain fame mixture cover age tiny detect effort estate hotel')
+  const xmtp = await Client.create(signer, {env: 'production'})
+  console.log("sending xmtp")
+  const conversation = await xmtp.conversations.newConversation(
+  address
+  )
+  console.log("conversation started")
+  await conversation.send(uri + ',' + hash);
+  console.log("message sent via XMTP")
+}
+  
+async function sendPush(uri, hash){
+  // Creating a random signer from a wallet, ideally this is the wallet you will connect
+
+const signer = null;
+  const userAddress = await signer.getAddress()
+  console.log ("sending message from address: " + userAddress)
+  // Initialize wallet user, pass 'prod' instead of 'staging' for mainnet apps
+  console.log("logging");
+  const userSender = await PushAPI.PushAPI.initialize(signer, { env: 'staging' })
+  console.log("attempting send via Push Protocol")
+  const targetedNotif = await userSender.channel.send(['0x34df838F26565EbF832B7d7c1094D081679E8fe1'], {
+    notification: {
+      title: hash,
+      body: uri,
+    },
+  })
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -151,48 +185,35 @@ function NewMessage(props: any) {
       const blob = new Blob([JSON.stringify(bundle)], {
         type: "application/json",
       });
+
       console.log("created blob");
-      const chainIdString = "5";
-      const { ciphertext, dataToEncryptHash } = await LitJsSdk.encryptString(
-        {
-          currentAccessControlConditions,
-          authSig,
-          chain: 'ethereum',
-          dataToEncrypt: blob,
+      const chainIdString = "ethereum" 
+      const encBlob = await LitJsSdk.encryptFile( {
+        accessControlConditions,
+        authSig,
+        chain: 'ethereum',
+        file: blob,
         },
-        client,
+        litNodeClient,
       );
-  
-
-      //console.log("executed encytption with lit:" + encBlob);
-      //const encFile = encBlob.encryptedFile;
-      const encFile = null;
+      const hash = encBlob.dataToEncryptHash;
+      console.log("executed encytption with lit:" + hash);
+      const encFile = encBlob.ciphertext;
+      console.log('File encrypted with Lit protocol:' + encFile );
       if (encFile != null) {
-        const files = [
-          new File([blob], "plain-utf8.txt)"),
-          new File([encFile], "Patient/" + uuid),
-        ];
-
-        //Upload File to IPFS
-        const client = makeStorageClient();
-        const cid = await client.put(files);
-        console.log(cid);
-        const uri = "https://" + cid + ".ipfs.dweb.link/Patient/" + uuid;
-        console.log(uri);
-        //create new did registry entry
-        console.log("stored files with cid:", cid);
-        console.log("uri:", uri);
-
-        //TODO Get receiptient address from DID.
-        //const recipientDIDAddress = getAddressfromDID(recipientDID)
-        //const userSender = await PushAPI.initialize(signer, { env: 'staging' })
-        /*const targetedNotif = await userSender.channel.send([recipientDID], {
-          notification: {
-            title: 'message',
-            body: uri,
-          },
-        })
-        */
+        // Prepare files to upload to IPFS
+        const uuid = v4();
+        const files = [new File([encFile], "Bundle/" + uuid)];      
+        const uri = await uploadFiletoIPFS(uuid, files);
+        //Send PushNotification via Push Protocol
+        try{
+          await sendXMTP(uri, hash);  
+          try{
+            await sendPush(uri, hash);
+          }
+          catch(e){console.log(e)}
+        }
+        catch(e){console.log(e)}
       }
   };
 
