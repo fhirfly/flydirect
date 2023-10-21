@@ -42,18 +42,23 @@ const encryptAndUploadFile = async (filePath, uuid) => {
     if (!authSig) {
       throw new Error('AuthSig is required for encryption');
     }
-
     // Read the file's content
     const sFHIR = JSON.stringify(fs.readFileSync(filePath, 'utf8')); // or 'binary' if the file is not a text file
-
+    console.log(sFHIR)
     // Specify your access control conditions here
     const accessControlConditions = [
-        {
-          contractAddress: "",
-          chain: "ethereum",
+      {
+        contractAddress: "",
+        standardContractType: "",
+        chain: "ethereum",
+        method: "eth_getBalance",
+        parameters: [":userAddress", "latest"],
+        returnValueTest: {
+          comparator: ">=",
+          value: "1000000000000", // 0.000001 ETH
         },
-      ];
-
+      },
+    ];
     const blob = new Blob([sFHIR], { type: "application/json" });
     console.log("created blob");
     const chainIdString = "ethereum" 
@@ -65,41 +70,51 @@ const encryptAndUploadFile = async (filePath, uuid) => {
       },
       litNodeClient,
     );
-    console.log("executed encytption with lit:" + encBlob.dataToEncryptHash);
+    const hash = encBlob.dataToEncryptHash;
+    console.log("executed encytption with lit:" + hash);
     const encFile = encBlob.ciphertext;
-    console.log('File encrypted with Lit protocol');
-
+    console.log('File encrypted with Lit protocol:' + encFile );
     if (encFile != null) {
       // Prepare files to upload to IPFS
       const uuid = v4();
       const files = [new File([encFile], "Bundle/" + uuid)];      
-      // Upload file to IPFS
-      console.log('create ipfs client');
-      const ipfsClient = makeStorageClient();
-      console.log('put IPFS file' + files)
-      const cid = await ipfsClient.put(files);
-      console.log("stored files with cid:", cid);
-      const uri = "https://" + cid + ".ipfs.dweb.link/Bundle/" + uuid;
-      console.log("uri:", uri);
-
-      // Creating a random signer from a wallet, ideally this is the wallet you will connect
-      const signer = ethers.Wallet.createRandom()
-      //const recipientDID = '0x13430912D6E31767D3C5e2068993A1ea6B120b6c'
-      const recipientDID = '0xd4d80ccE6178f146F02196C124e8760A921D8249'
-      // Initialize wallet user, pass 'prod' instead of 'staging' for mainnet apps
-      const userSender = await PushAPI.PushAPI.initialize(signer, { env: 'staging' })
-      const targetedNotif = await userSender.channel.send([recipientDID], {
-        notification: {
-          title: encBlob.dataToEncryptHash,
-          body: uri,
-        },
-      })
-
+      const uri = await uploadFiletoIPFS(uuid, files);
+      await sendPush(uri, hash);
     }
   } catch (error) {
     console.error('Failed to encrypt or store file:', error);
   }
 };
+async function uploadFiletoIPFS(uuid, files ){
+  // Upload file to IPFS
+  console.log('create ipfs client');
+  const ipfsClient = makeStorageClient();
+  console.log('put IPFS file' + files)
+  const cid = await ipfsClient.put(files);
+  console.log("stored files with cid:", cid);
+  const uri = "https://" + cid + ".ipfs.dweb.link/Bundle/" + uuid;
+  console.log("uri:", uri);
+  return uri;
+
+}
+async function sendPush(uri, hash){
+  // Creating a random signer from a wallet, ideally this is the wallet you will connect
+  const signer = ethers.Wallet.fromMnemonic('keen clay bargain fame mixture cover age tiny detect effort estate hotel')
+  const recipientDID = '0x34df838F26565EbF832B7d7c1094D081679E8fe1'
+  const userAddress = await signer.getAddress()
+  console.log ("sending message from address: " + userAddress)
+  // Initialize wallet user, pass 'prod' instead of 'staging' for mainnet apps
+  console.log("logging");
+  const userSender = await PushAPI.PushAPI.initialize(signer, { env: 'staging' })
+  console.log("attempting send")
+  const targetedNotif = await userSender.channel.send([recipientDID], {
+    notification: {
+      title: hash,
+      body: uri,
+    },
+  })
+}
+
 // Directory to watch
 const DIRECTORY_TO_WATCH = './in'; // replace with your actual directory
 // File watcher setup

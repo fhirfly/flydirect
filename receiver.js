@@ -10,7 +10,8 @@ import { ethers } from 'ethers'
 const litNodeClient =new LitJsSdk.LitNodeClient({
     litNetwork: 'cayenne',
   });
-const signer = ethers.Wallet.createRandom();
+const signer = new ethers.Wallet('0dd54109a9cf2631c649cd5a3ba42c887f8c69eeb7bbaacb742ca68a8bd41573');
+
 // Function to create the Web3.storage client
 function makeStorageClient() {
   return new Web3Storage({ token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkaWQ6ZXRocjoweDc0QTVkZGY1NDBEN0ZGRTQxY0I1Y2ZhNWNGNzk1NkQ4ZDhiOTUxRWEiLCJpc3MiOiJ3ZWIzLXN0b3JhZ2UiLCJpYXQiOjE2OTAyMTc0ODg5NDUsIm5hbWUiOiJmaGlyZmx5In0.BVDQuzdmQLQjGyE3yoMwP4eZ3VbDaZQZPoQHEFz-1ws' }); // replace with your actual token
@@ -102,16 +103,14 @@ const fetchAndProcessNotifications = async () => {
       // Note: It might be better to do this once outside of this function, depending on your needs
       const userAddress = await signer.getAddress()
       console.log ("polling for message for address: " + userAddress)
-      const userSender = await PushAPI.PushAPI.initialize(signer, { env: 'staging' });
-  
+      const userSender = await PushAPI.PushAPI.initialize(signer, { env: 'staging' });  
       // Fetch notifications
-      const inboxNotifications = await userSender.notification.list('INBOX');
-  
+      const inboxNotifications = await userSender.notification.list('INBOX');  
       // Process notifications
       for (const notification of inboxNotifications) {
         console.log("incoming message")
         // Assuming the subject contains the hash and the body contains the IPFS bafyhash
-        const { subject: hash, body: bafyhash } = notification;
+        const { title: hash, body: bafyhash } = notification;
         console.log("hash: " + hash)
         console.log("bafyHash: " + bafyhash)
         // Now you can call your function to download, decrypt, etc.
@@ -124,15 +123,13 @@ const fetchAndProcessNotifications = async () => {
 // Main function to start the process
 const main = async () => {
     try {
-      // You might want to perform some initial setup here
-  
+      // You might want to perform some initial setup here  
       // Start the loop
       const loop = async () => {
         await fetchAndProcessNotifications();
         // Call this function again after 3 seconds
         setTimeout(loop, 3000);
-      };
-  
+      };  
       loop(); // This starts the loop
     } catch (error) {
       console.error('Error in main function:', error);
