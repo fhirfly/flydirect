@@ -47,10 +47,9 @@ function NewMessage(props: any) {
     });
   };
 
-  async function sendXMTP(uri, hash, address){
+  async function sendXMTP(uri: string, hash: string, address: string){
   // Create the client with a `Signer` from your application
-  need the recipients wallet from access control conditions  
-  const signer = ethers.Wallet.fromMnemonic('keen clay bargain fame mixture cover age tiny detect effort estate hotel')
+const signer = null;
   const xmtp = await Client.create(signer, {env: 'production'})
   console.log("sending xmtp")
   const conversation = await xmtp.conversations.newConversation(
@@ -59,11 +58,10 @@ function NewMessage(props: any) {
   console.log("conversation started")
   await conversation.send(uri + ',' + hash);
   console.log("message sent via XMTP")
-}
+  }
   
-async function sendPush(uri, hash){
+async function sendPush(uri: any, hash: string, address: string){
   // Creating a random signer from a wallet, ideally this is the wallet you will connect
-
 const signer = null;
   const userAddress = await signer.getAddress()
   console.log ("sending message from address: " + userAddress)
@@ -71,12 +69,26 @@ const signer = null;
   console.log("logging");
   const userSender = await PushAPI.PushAPI.initialize(signer, { env: 'staging' })
   console.log("attempting send via Push Protocol")
-  const targetedNotif = await userSender.channel.send(['0x34df838F26565EbF832B7d7c1094D081679E8fe1'], {
+  const targetedNotif = await userSender.channel.send([address], {
     notification: {
       title: hash,
       body: uri,
     },
   })
+ }
+async function uploadFiletoIPFS(uuid: string, files: string | File[] ){
+    // Upload file to IPFS
+  console.log('create ipfs client');
+  const ipfsClient = makeStorageClient();
+  console.log('put IPFS file' + files)
+  const cid = await ipfsClient.put(files);
+  console.log("stored files with cid:", cid);
+  const uri = "https://" + cid + ".ipfs.dweb.link/Bundle/" + uuid;
+  console.log("uri:", uri);
+  return cid;
+
+}
+
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -194,7 +206,7 @@ const signer = null;
         chain: 'ethereum',
         file: blob,
         },
-        litNodeClient,
+        LitNodeClient,
       );
       const hash = encBlob.dataToEncryptHash;
       console.log("executed encytption with lit:" + hash);
@@ -207,9 +219,9 @@ const signer = null;
         const uri = await uploadFiletoIPFS(uuid, files);
         //Send PushNotification via Push Protocol
         try{
-          await sendXMTP(uri, hash);  
+          await sendXMTP(uri, hash, currentAccessControlConditions.entries.toString());  
           try{
-            await sendPush(uri, hash);
+            await sendPush(uri, hash, currentAccessControlConditions.entries.toString());
           }
           catch(e){console.log(e)}
         }
