@@ -6,10 +6,11 @@ import LitJsSdk from '@lit-protocol/lit-node-client';
 import { v4 } from "uuid";
 import * as PushAPI from "@pushprotocol/restapi";
 import { ethers } from 'ethers'
+import { Client } from '@xmtp/xmtp-js'
 // Initialize the Lit client
 const litNodeClient =new LitJsSdk.LitNodeClient({
     litNetwork: 'cayenne',
-  });
+});
 // Function to create the Web3.storage client
 function makeStorageClient() {
   return new Web3Storage({ token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkaWQ6ZXRocjoweDc0QTVkZGY1NDBEN0ZGRTQxY0I1Y2ZhNWNGNzk1NkQ4ZDhiOTUxRWEiLCJpc3MiOiJ3ZWIzLXN0b3JhZ2UiLCJpYXQiOjE2OTAyMTc0ODg5NDUsIm5hbWUiOiJmaGlyZmx5In0.BVDQuzdmQLQjGyE3yoMwP4eZ3VbDaZQZPoQHEFz-1ws' }); // replace with your actual token
@@ -79,7 +80,15 @@ const encryptAndUploadFile = async (filePath, uuid) => {
       const uuid = v4();
       const files = [new File([encFile], "Bundle/" + uuid)];      
       const uri = await uploadFiletoIPFS(uuid, files);
-      await sendPush(uri, hash);
+      //Send PushNotification via Push Protocol
+      try{
+        await sendXMTP(uri, hash);  
+        try{
+          await sendPush(uri, hash);
+        }
+        catch(e){console.log(e)}
+      }
+      catch(e){console.log(e)}
     }
   } catch (error) {
     console.error('Failed to encrypt or store file:', error);
@@ -94,27 +103,38 @@ async function uploadFiletoIPFS(uuid, files ){
   console.log("stored files with cid:", cid);
   const uri = "https://" + cid + ".ipfs.dweb.link/Bundle/" + uuid;
   console.log("uri:", uri);
-  return uri;
+  return cid;
 
+}
+async function sendXMTP(uri, hash){
+  // Create the client with a `Signer` from your application
+  const signer = ethers.Wallet.fromMnemonic('keen clay bargain fame mixture cover age tiny detect effort estate hotel')
+  const xmtp = await Client.create(signer, {env: 'production'})
+  console.log("sending xmtp")
+  const conversation = await xmtp.conversations.newConversation(
+    '0x34df838F26565EbF832B7d7c1094D081679E8fe1'
+  )
+  console.log("conversation started")
+  await conversation.send(uri + ',' + hash);
+  console.log("message sent via XMTP")
 }
 async function sendPush(uri, hash){
   // Creating a random signer from a wallet, ideally this is the wallet you will connect
   const signer = ethers.Wallet.fromMnemonic('keen clay bargain fame mixture cover age tiny detect effort estate hotel')
-  const recipientDID = '0x34df838F26565EbF832B7d7c1094D081679E8fe1'
   const userAddress = await signer.getAddress()
   console.log ("sending message from address: " + userAddress)
   // Initialize wallet user, pass 'prod' instead of 'staging' for mainnet apps
   console.log("logging");
   const userSender = await PushAPI.PushAPI.initialize(signer, { env: 'staging' })
-  console.log("attempting send")
-  const targetedNotif = await userSender.channel.send([recipientDID], {
+  console.log("attempting send via Push Protocol")
+  const targetedNotif = await userSender.channel.send(['0x34df838F26565EbF832B7d7c1094D081679E8fe1'], {
     notification: {
       title: hash,
       body: uri,
     },
   })
+  console.log(targetedNotif)
 }
-
 // Directory to watch
 const DIRECTORY_TO_WATCH = './in'; // replace with your actual directory
 // File watcher setup

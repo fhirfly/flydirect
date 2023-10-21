@@ -5,12 +5,17 @@ import { Web3Storage, File} from 'web3.storage';
 import LitJsSdk from '@lit-protocol/lit-node-client';
 import { v4 } from "uuid";
 import * as PushAPI from "@pushprotocol/restapi";
+import { Client } from '@xmtp/xmtp-js';
 import { ethers } from 'ethers'
+
 // Initialize the Lit client
 const litNodeClient =new LitJsSdk.LitNodeClient({
     litNetwork: 'cayenne',
   });
 const signer = new ethers.Wallet('0dd54109a9cf2631c649cd5a3ba42c887f8c69eeb7bbaacb742ca68a8bd41573');
+
+// Create the client with a `Signer` from your application
+const xmtp = await Client.create(signer, {env: 'production'})
 
 // Function to create the Web3.storage client
 function makeStorageClient() {
@@ -29,13 +34,13 @@ const connectToLit = async () => {
 // This is the authsig for 0x75341449Dd0e8D696Ca09eD4996a637D2cF1EC57 - We need to change it.
 function obtainAuthSig(){
     return {
-        sig : "0xf0fa357988b08853938bca2f05876ba34b7c61f1205312cb91b5eae2562dfc78504214de2845241bddad868d2d42f006e3c355e8e5ae16df9df0e1838aa2288f1b",
-        derivedVia : "web3.eth.personal.sign",
-        address: "0x75341449dd0e8d696ca09ed4996a637d2cf1ec57"
-        } 
+      "sig": "0x7b3a647ba936dd8e28fadcc73f1042f826a3bb3842c7ae84d98e4a928b56946320421d19d827831f747be12f47b0de43465a6acba2465332161a4849703889f01c",
+      "derivedVia": "web3.eth.personal.sign",
+      "address": "0x34df838f26565ebf832b7d7c1094d081679e8fe1"
+    } 
 }
 // Function to download from upload to IPFS and decrypt the file using LIT Protocol and 
-const DownloadandDecryptFile = async (url, dataToEncryptHash) => {
+const DownloadandDecryptFile = async (url, hash) => {
   try {  
     // Start the connection to the LIT network
     await connectToLit();
@@ -56,46 +61,78 @@ const DownloadandDecryptFile = async (url, dataToEncryptHash) => {
             value: "1000000000000", // 0.000001 ETH
           },
         },
-      ];
-
+    ];
     // Download file from IPFS
     console.log('create ipfs client');
     const ipfsClient = makeStorageClient();
-    console.log('get IPFS file' + files)
-    const file = await ipfsClient.fetch(url);
-    console.log("fetched file", file); 
-    
-    const chainIdString = "ethereum" 
-    const decryptBlob = await LitJsSdk.decryptToFile( {
-        accessControlConditions: accessControlConditions,
-        file: file,
-        dataToEncryptHash: hash,
-        authSig: authSig,
-        chain: 'ethereum',
-
-        
-    },
-    litNodeClient,
-        );
-
-    console.log('File decrypted with Lit protocol');
-    const outputPath = path.join(__dirname, 'out', decryptBlob.fileName);
-
-    // Write the decrypted file to the 'out' directory
-    fs.writeFile(outputPath, decryptBlob.file, (err) => {
-      if (err) {
-        console.error('Failed to write decrypted file:', err);
-      } else {
-        console.log(`Decrypted file has been saved in 'out' directory with name: ${decryptBlob.fileName}`);
-      }
-    });
-
-    
+    console.log('get IPFS file at cid:' + url)
+    //const file = await ipfsClient.fetch(url);
+    //url = "bafybeiae7dz3gnozqcdirbfw2jxspjcpvi7ggsxligcqa3dfevtzpnxplq"
+    url = "bafkreiakbarz2546bzmy2sdwopv53uawc5fpmw7d5mrzbqy7yinogrxewm"
+    const data = await ipfsClient.get(url);
+    console.log(`Got a response! [${data.status}] ${data.statusText}`)
+    if (!data.ok) {
+      throw new Error(`failed to get ${url} - [${data.status}] ${data.statusText}`)
+    }
+  
+    // unpack File objects from the response
+    const files = await data.files()
+    for (const file of files) {
+      console.log(`${file.cid} --  ${file.size}`)
+      // Each `file` object contains `name` and `content` properties
+      const fileName = file.name;     
+      console.log("fetched file");     
+      const chainIdString = "ethereum" 
+      console.log("decrypting: " + fileName)
+      const fileContents = await readFileContents(file);
+      const decryptBlob = await LitJsSdk.decryptToFile( {
+          ciphertext: fileContents,          
+          dataToEncryptHash: hash,
+          accessControlConditions: accessControlConditions,
+          chain: 'ethereum',
+          authSig: authSig
+      },
+      litNodeClient,
+      );
+      console.log('File decrypted with Lit protocol');
+      const outputPath = path.join(__dirname, 'out', decryptBlob.fileName);
+      // Write the decrypted file to the 'out' directory
+      fs.writeFile(outputPath, decryptBlob.file, (err) => {
+        if (err) {
+          console.error('Failed to write decrypted file:', err);
+        } else {
+          console.log(`Decrypted file has been saved in 'out' directory with name: ${decryptBlob.fileName}`);
+        }
+      }); 
+      // Now you can work with fileContent, e.g., send it for decryption or save it to the file system
+    }
+       
   }
   catch (error) {
         console.error('Failed to encrypt or store file:', error);
   }
 }
+function readFileContents(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    // This event listener will be called when the reading operation is completed
+    reader.onload = function(event) {
+      // The file contents are available in event.target.result
+      resolve(event.target.result);
+    };
+
+    // This event listener will be called if there's an error reading the file
+    reader.onerror = function(event) {
+      reader.abort();
+      reject(new DOMException("Error reading file."));
+    };
+
+    // Start reading the file as text
+    reader.readAsText(file);
+  });
+}
+
 // Function to fetch and process notifications
 const fetchAndProcessNotifications = async () => {
     try {
@@ -120,17 +157,38 @@ const fetchAndProcessNotifications = async () => {
       console.error('Error fetching or processing notifications:', error);
     }
 };  
+const listenAndProcessXmTpMessages = async () => {
+  console.log("connecting to XMTP Stream")
+  const conversation = await xmtp.conversations.newConversation(
+    '0x75341449dd0e8d696ca09ed4996a637d2cf1ec57'
+  )
+  console.log("conversation started")
+  // Load all messages in the conversation
+  const messages = await conversation.messages()
+  for (let i = 0;i<messages.length; i++) {
+    console.log(`[${messages[i].senderAddress}]: ${messages[i].content}`)
+    const hash = messages[i].content.split(",")[1]
+    const bafyhash = messages[i].content.split(",")[0]
+    console.log("hash: " + hash)
+    console.log("bafyHash: " + bafyhash)
+    // Now you can call your function to download, decrypt, etc.
+    await DownloadandDecryptFile(bafyhash, hash); // Make sure this function is properly defined and imported
+  }
+}
 // Main function to start the process
 const main = async () => {
     try {
       // You might want to perform some initial setup here  
       // Start the loop
+      listenAndProcessXmTpMessages ()
+      /*
       const loop = async () => {
         await fetchAndProcessNotifications();
         // Call this function again after 3 seconds
         setTimeout(loop, 3000);
       };  
       loop(); // This starts the loop
+      */
     } catch (error) {
       console.error('Error in main function:', error);
     }
