@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@lit-protocol/lit-node-client": "^3.0.2",
+    "@lit-protocol/types": "^2.2.61",
     "@pushprotocol/restapi": "^1.4.28",
     "@types/fhir": "^0.0.38",
     "@xmtp/xmtp-js": "^11.2.0",

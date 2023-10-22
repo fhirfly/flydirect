@@ -7,13 +7,14 @@ import Person = fhir4b.Person;
 import Signature = fhir4b.Signature;
 import { v4 } from "uuid";
 import * as LitJsSdk from "@lit-protocol/lit-node-client";
+import { LitNodeClient } from "@lit-protocol/lit-node-client";
 import * as PushAPI from "@pushprotocol/restapi";
-import { ethers } from 'ethers'
-import { Client } from '@xmtp/xmtp-js'
+import { ethers } from "ethers";
+import { Client } from "@xmtp/xmtp-js";
 import { makeStorageClient } from "../hooks/useIpfs";
 import ShareModal from "lit-share-modal-v3";
 //import { PushAPI } from '@pushprotocol/restapi'
-
+import type { AuthSig } from "@lit-protocol/types";
 interface FormState {
   recipient: string;
   subject: string;
@@ -23,12 +24,18 @@ interface FormState {
 function NewMessage(props: any) {
   const [showShareModal, setShowShareModal] = useState(false);
   const [accessControlConditions, setAccessControlConditions] = useState([]);
-
+  // console.log(props)
+  const authSig: AuthSig = {
+    address: props.authSig_address,
+    derivedVia: props.authSig_derivedVia,
+    sig: props.authSig_sig,
+    signedMessage: props.authSig_signedMessage,
+  };
 
   const onUnifiedAccessControlConditionsSelected = (shareModalOutput: any) => {
     // do things with share modal output
+    console.log(shareModalOutput);
     setAccessControlConditions(shareModalOutput);
-  
   };
 
   const [formData, setFormData] = useState<FormState>({
@@ -47,48 +54,46 @@ function NewMessage(props: any) {
     });
   };
 
-  async function sendXMTP(uri: string, hash: string, address: string){
-  // Create the client with a `Signer` from your application
-const signer = null;
-  const xmtp = await Client.create(signer, {env: 'production'})
-  console.log("sending xmtp")
-  const conversation = await xmtp.conversations.newConversation(
-  address
-  )
-  console.log("conversation started")
-  await conversation.send(uri + ',' + hash);
-  console.log("message sent via XMTP")
+  async function sendXMTP(uri: string, hash: string, address: string) {
+    // Create the client with a `Signer` from your application
+    const signer = null;
+    const xmtp = await Client.create(signer, { env: "production" });
+    console.log("sending xmtp");
+    const conversation = await xmtp.conversations.newConversation(address);
+    console.log("conversation started");
+    await conversation.send(uri + "," + hash);
+    console.log("message sent via XMTP");
   }
-  
-async function sendPush(uri: any, hash: string, address: string){
-  // Creating a random signer from a wallet, ideally this is the wallet you will connect
-const signer = null;
-  const userAddress = await signer.getAddress()
-  console.log ("sending message from address: " + userAddress)
-  // Initialize wallet user, pass 'prod' instead of 'staging' for mainnet apps
-  console.log("logging");
-  const userSender = await PushAPI.PushAPI.initialize(signer, { env: 'staging' })
-  console.log("attempting send via Push Protocol")
-  const targetedNotif = await userSender.channel.send([address], {
-    notification: {
-      title: hash,
-      body: uri,
-    },
-  })
- }
-async function uploadFiletoIPFS(uuid: string, files: string | File[] ){
+
+  async function sendPush(uri: any, hash: string, address: string) {
+    // Creating a random signer from a wallet, ideally this is the wallet you will connect
+    const signer = null;
+    const userAddress = await signer.getAddress();
+    console.log("sending message from address: " + userAddress);
+    // Initialize wallet user, pass 'prod' instead of 'staging' for mainnet apps
+    console.log("logging");
+    const userSender = await PushAPI.PushAPI.initialize(signer, {
+      env: "staging",
+    });
+    console.log("attempting send via Push Protocol");
+    const targetedNotif = await userSender.channel.send([address], {
+      notification: {
+        title: hash,
+        body: uri,
+      },
+    });
+  }
+  async function uploadFiletoIPFS(uuid: string, files: string | File[]) {
     // Upload file to IPFS
-  console.log('create ipfs client');
-  const ipfsClient = makeStorageClient();
-  console.log('put IPFS file' + files)
-  const cid = await ipfsClient.put(files);
-  console.log("stored files with cid:", cid);
-  const uri = "https://" + cid + ".ipfs.dweb.link/Bundle/" + uuid;
-  console.log("uri:", uri);
-  return cid;
-
-}
-
+    console.log("create ipfs client");
+    const ipfsClient = makeStorageClient();
+    console.log("put IPFS file" + files);
+    const cid = await ipfsClient.put(files);
+    console.log("stored files with cid:", cid);
+    const uri = "https://" + cid + ".ipfs.dweb.link/Bundle/" + uuid;
+    console.log("uri:", uri);
+    return cid;
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -104,129 +109,165 @@ async function uploadFiletoIPFS(uuid: string, files: string | File[] ){
       ],
     };
 
-  const currentAccessControlConditions = accessControlConditions;
-  console.log(currentAccessControlConditions)
-  const recipientDID = "1234";
-      const actualRecipient: Person = {
-        resourceType: "Person",
-        id: "recipient-person",
-        identifier: [
-          {
-            system: "https://www.w3.org/ns/did",
-            value: recipientDID,
-          },
-        ],
-      };
-      // Construct the MessageHeader and Communication resources.
-      const messageHeader: MessageHeader = {
-        resourceType: "MessageHeader",
-        contained: [actualSender, actualRecipient],
-        sender: { reference: "#sender-person" },
-        source: { endpoint: "did:health:1234" },
-        destination: [
-          {
-            endpoint: "did:health:12345",
-            receiver: { reference: "#receiver-person" },
-          },
-        ],
-        // ... other properties as per FHIR spec.
-      };
-
-      const communication: Communication = {
-        resourceType: "Communication",
-        status: "completed",
-        topic: { text: formData.subject },
-        payload: [{ contentString: formData.body }],
-        // ... other properties as per FHIR spec.
-      };
-
-      // Serialize the resources. This step may vary based on the specifics of your implementation.
-      const serializedMessageHeader = JSON.stringify(messageHeader);
-      const serializedCommunication = JSON.stringify(communication);
-      const serializedMessage = serializedMessageHeader + serializedCommunication;
-
-      //const base64Sig = window.btoa(JSON.stringify(authSig)); // Encode
-      const base64Sig = "1234";
-      // Construct the FHIR Signature objects.
-      const messageFhirSignature: Signature = {
-        // ... populate according to the Lit signature and FHIR spec,
-        when: new Date().toISOString(), // The time the signature was created.
-        type: [
-          {
-            system: "urn:iso-astm:E1762-95:2013",
-            code: "1.2.840.10065.1.12.1.1",
-            display: "Authors Signature",
-          },
-        ],
-        who: {
-          reference: "#sender-person",
+    const currentAccessControlConditions = accessControlConditions;
+    console.log(currentAccessControlConditions);
+    const recipientDID = "1234";
+    const actualRecipient: Person = {
+      resourceType: "Person",
+      id: "recipient-person",
+      identifier: [
+        {
+          system: "https://www.w3.org/ns/did",
+          value: recipientDID,
         },
-        onBehalfOf: {
-          reference: "#receiver-person",
+      ],
+    };
+    // Construct the MessageHeader and Communication resources.
+    const messageHeader: MessageHeader = {
+      resourceType: "MessageHeader",
+      contained: [actualSender, actualRecipient],
+      sender: { reference: "#sender-person" },
+      source: { endpoint: "did:health:1234" },
+      destination: [
+        {
+          endpoint: "did:health:12345",
+          receiver: { reference: "#receiver-person" },
         },
+      ],
+      // ... other properties as per FHIR spec.
+    };
 
-        targetFormat: "application/fhir+json",
-        sigFormat: "application/signature+json",
-        data: base64Sig, // The actual signature content, base64 encoded.
-      };
+    const communication: Communication = {
+      resourceType: "Communication",
+      status: "completed",
+      topic: { text: formData.subject },
+      payload: [{ contentString: formData.body }],
+      // ... other properties as per FHIR spec.
+    };
 
-      const uuid = v4();
+    // Serialize the resources. This step may vary based on the specifics of your implementation.
+    const serializedMessageHeader = JSON.stringify(messageHeader);
+    const serializedCommunication = JSON.stringify(communication);
+    const serializedMessage = serializedMessageHeader + serializedCommunication;
 
-      // Construct the Bundle with the signed resources.
-      const bundle: Bundle = {
-        resourceType: "Bundle",
-        id: uuid,
-        type: "message",
-        signature: messageFhirSignature,
+    //const base64Sig = window.btoa(JSON.stringify(authSig)); // Encode
+    const base64Sig = "1234";
+    // Construct the FHIR Signature objects.
+    const messageFhirSignature: Signature = {
+      // ... populate according to the Lit signature and FHIR spec,
+      when: new Date().toISOString(), // The time the signature was created.
+      type: [
+        {
+          system: "urn:iso-astm:E1762-95:2013",
+          code: "1.2.840.10065.1.12.1.1",
+          display: "Authors Signature",
+        },
+      ],
+      who: {
+        reference: "#sender-person",
+      },
+      onBehalfOf: {
+        reference: "#receiver-person",
+      },
 
-        // ... other properties,
-        entry: [
-          {
-            fullUrl: "urn:uuid:message-header-id",
-            resource: messageHeader,
-          },
-          {
-            fullUrl: "urn:uuid:communication-id",
-            resource: communication,
-          },
-        ],
-      };
+      targetFormat: "application/fhir+json",
+      sigFormat: "application/signature+json",
+      data: base64Sig, // The actual signature content, base64 encoded.
+    };
 
-      console.log("Prepared and signed FHIR Bundle", bundle);
+    const uuid = v4();
 
-      const blob = new Blob([JSON.stringify(bundle)], {
-        type: "application/json",
-      });
+    // Construct the Bundle with the signed resources.
+    const bundle: Bundle = {
+      resourceType: "Bundle",
+      id: uuid,
+      type: "message",
+      signature: messageFhirSignature,
 
-      console.log("created blob");
-      const chainIdString = "ethereum" 
-      const encBlob = await LitJsSdk.encryptFile( {
-        accessControlConditions,
-        authSig,
-        chain: 'ethereum',
+      // ... other properties,
+      entry: [
+        {
+          fullUrl: "urn:uuid:message-header-id",
+          resource: messageHeader,
+        },
+        {
+          fullUrl: "urn:uuid:communication-id",
+          resource: communication,
+        },
+      ],
+    };
+
+    console.log("Prepared and signed FHIR Bundle", bundle);
+
+    const blob = new Blob([bundle], {
+      type: "application/json",
+    });
+
+    console.log("created blob");
+    const chainIdString = "ethereum";
+
+    // async encrypt(message: string) {
+    //   if (!this.litNodeClient) {
+    //     await this.connect()
+    //   }
+
+    //   const authSig = await LitJsSdk.checkAndSignAuthMessage({ chain })
+    //   const { encryptedString, symmetricKey } = await LitJsSdk.encryptString(message)
+
+    //   const encryptedSymmetricKey = await window.litNodeClient.saveEncryptionKey({
+    //     accessControlConditions,
+    //     symmetricKey,
+    //     authSig,
+    //     chain,
+    //   })
+
+    //   return {
+    //     encryptedString,
+    //     encryptedSymmetricKey: LitJsSdk.uint8
+    //   }
+
+    if (!this.litNodeClient) {
+      await this.connect();
+    }
+    const encBlob = await LitJsSdk.encryptFile(
+      {
+        // accessControlConditions: accessControlConditions,
+        accessControlConditions: [accessControlConditions],
+        authSig: authSig,
+        chain: "ethereum",
         file: blob,
-        },
-        LitNodeClient,
-      );
-      const hash = encBlob.dataToEncryptHash;
-      console.log("executed encytption with lit:" + hash);
-      const encFile = encBlob.ciphertext;
-      console.log('File encrypted with Lit protocol:' + encFile );
-      if (encFile != null) {
-        // Prepare files to upload to IPFS
-        const uuid = v4();
-        const files = [new File([encFile], "Bundle/" + uuid)];      
-        const uri = await uploadFiletoIPFS(uuid, files);
-        //Send PushNotification via Push Protocol
-        try{
-          await sendXMTP(uri, hash, currentAccessControlConditions.entries.toString());  
-          try{
-            await sendPush(uri, hash, currentAccessControlConditions.entries.toString());
-          }
-          catch(e){console.log(e)}
-        }
-        catch(e){console.log(e)}
+      },
+      LitNodeClient.connnecta
+    );
+    const hash = encBlob.dataToEncryptHash;
+    console.log("executed encytption with lit:" + hash);
+    const encFile = encBlob.ciphertext;
+    console.log("File encrypted with Lit protocol:" + encFile);
+    if (encFile != null) {
+      // Prepare files to upload to IPFS
+      const uuid = v4();
+      const files = [new File([encFile], "Bundle/" + uuid)];
+      const uri = await uploadFiletoIPFS(uuid, files);
+      //Send PushNotification via Push Protocol
+      try {
+        await sendXMTP(
+          uri,
+          hash,
+          currentAccessControlConditions.entries.toString()
+        );
+        // try {
+        //   await sendPush(
+        //     uri,
+        //     hash,
+        //     currentAccessControlConditions.entries.toString()
+        //   );
+        // } catch (e) {
+        //   console.log(e);
+        // }
+      } catch (e) {
+        console.log(e);
       }
+    }
   };
 
   async function getAddressfromDID(did: any) {
@@ -234,18 +275,37 @@ async function uploadFiletoIPFS(uuid: string, files: string | File[] ){
   }
 
   return (
-    // console.log("SIGNATURE", authSig.sig),
-    <form onSubmit={handleSubmit}>
-      <div>
-        <label htmlFor="recipient">Recipient(s) DID:</label>
-        {<button onClick={() => setShowShareModal(true)}>
-          Set Recipient(s)
-        </button>}
+    <form
+      className="bg-white shadow-md rounded px-8 pt-8 pb-8 mb-4"
+      onSubmit={handleSubmit}
+    >
+      <div className="mb-4 flex flex-col items-center">
+        <label
+          className="block text-gray-700 text-sm font-bold mb-2"
+          htmlFor="recipient"
+        >
+          Recipient(s) DID:
+        </label>
+        {
+          <button
+            className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+            type="button"
+            onClick={() => setShowShareModal(true)}
+          >
+            Set Recipient(s)
+          </button>
+        }
       </div>
 
       <div>
-        <label htmlFor="subject">Subject:</label>
+        <label
+          className="block text-gray-700 text-sm font-bold mb-2"
+          htmlFor="subject"
+        >
+          Subject:
+        </label>
         <input
+          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           type="text"
           id="subject"
           name="subject"
@@ -256,8 +316,14 @@ async function uploadFiletoIPFS(uuid: string, files: string | File[] ){
       </div>
 
       <div>
-        <label htmlFor="body">Message Body:</label>
+        <label
+          className="block text-gray-700 text-sm font-bold mb-2"
+          htmlFor="body"
+        >
+          Message Body:
+        </label>
         <textarea
+          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           id="body"
           name="body"
           value={formData.body}
@@ -267,21 +333,26 @@ async function uploadFiletoIPFS(uuid: string, files: string | File[] ){
       </div>
 
       <div>
-          {showShareModal && (
-            <div className={"lit-share-modal"}>
-              <ShareModal
-                onClose={() => {
-                  setShowShareModal(false);
-                }}
-                onUnifiedAccessControlConditionsSelected={
-                  onUnifiedAccessControlConditionsSelected
-                }
-              />
-            </div>
-          )}
-        </div> 
+        {showShareModal && (
+          <div className={"lit-share-modal"}>
+            <ShareModal
+              onClose={() => {
+                setShowShareModal(false);
+              }}
+              onUnifiedAccessControlConditionsSelected={
+                onUnifiedAccessControlConditionsSelected
+              }
+            />
+          </div>
+        )}
+      </div>
 
-      <button type="submit">Send Message</button>
+      <button
+        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+        type="submit"
+      >
+        Send Message
+      </button>
     </form>
   );
 }
