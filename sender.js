@@ -6,6 +6,7 @@ import { v4 } from "uuid";
 import * as PushAPI from "@pushprotocol/restapi";
 import { ethers } from 'ethers'
 import { Client } from '@xmtp/xmtp-js'
+import path from 'path'
 // Initialize the Lit client
 const litNodeClient =new LitJsSdk.LitNodeClient({
     litNetwork: 'cayenne',
