@@ -1,11 +1,11 @@
 
-# FlyDirect: Decentralized Healthcare Communication Platform
+# FlyDirect: Decentralized Healthcare Messaging and Communication Platform
 ## Overview
 
 FlyDirect is an innovative, open-source platform designed to revolutionize communication within the healthcare ecosystem. By utilizing decentralized identities (DIDs) and adhering to Fast Healthcare Interoperability Resources (FHIR) standards, FlyDirect enables secure, private, and standardized communication among patients, practitioners, organizations, devices and related entities. This project is under the MIT license, promoting a collaborative development environment.
 
 ## Features
-- FHIR Standard Adherence: Ensures efficient, error-free message data exchange and astandard data model for interoperability across various healthcare systems.
+- FHIR Standard Adherence: Ensures efficient, error-free message data exchange and astandard data model that spans the entire ecosystem for interoperability across various healthcare systems.
 - IPFS/FileCoin for Message Storage: Provides decentralized data storage, preventing data loss, enhancing availability, and ensuring scalability.
 - Decentralized Identifiers (DIDs): Enables individuals and entities to control their identifiers, promoting privacy and security in communications.
 - Threshold Cryptography: Offers robust security for sensitive health information through the Lit protocol, safeguarding data integrity and confidentiality.
