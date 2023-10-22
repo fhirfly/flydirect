@@ -33,7 +33,7 @@ yarn dev
 
 ### Example of working Nodejs Backend
 
-#### Branch: [nodejs](https:/fhirfly/flydirect/github.com//tree/node-js)
+#### Branch: [nodejs](https://github.com/fhirfly/flydirect/tree/node-js)
 
 ## Usage
 To send a message, fill out the form with the recipient's DID, subject, and message body.
