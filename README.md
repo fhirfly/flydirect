@@ -2,7 +2,7 @@
 # FlyDirect: Decentralized Healthcare Communication Platform
 ## Overview
 
-FlyDirect is an innovative, open-source platform designed to revolutionize communication within the healthcare ecosystem. By utilizing decentralized identities (DIDs) and adhering to Fast Healthcare Interoperability Resources (FHIR) standards, FlyDirect enables secure, private, and standardized communication among patients, healthcare practitioners, insurers, and related entities. This project is under the MIT license, promoting a collaborative development environment.
+FlyDirect is an innovative, open-source platform designed to revolutionize communication within the healthcare ecosystem. By utilizing decentralized identities (DIDs) and adhering to Fast Healthcare Interoperability Resources (FHIR) standards, FlyDirect enables secure, private, and standardized communication among patients, practitioners, organizations, devices and related entities. This project is under the MIT license, promoting a collaborative development environment.
 
 ## Features
 - Decentralized Identifiers (DIDs): Enables individuals and entities to control their identifiers, promoting privacy and security in communications.
