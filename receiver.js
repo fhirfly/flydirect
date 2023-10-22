@@ -32,12 +32,14 @@ const connectToLit = async () => {
   }
 };
 // This is the authsig for 0x75341449Dd0e8D696Ca09eD4996a637D2cF1EC57 - We need to change it.
+// This is the authsig for 0x75341449Dd0e8D696Ca09eD4996a637D2cF1EC57 - We need to change it.
 function obtainAuthSig(){
-    return {
-      "sig": "0x7b3a647ba936dd8e28fadcc73f1042f826a3bb3842c7ae84d98e4a928b56946320421d19d827831f747be12f47b0de43465a6acba2465332161a4849703889f01c",
-      "derivedVia": "web3.eth.personal.sign",
-      "address": "0x34df838f26565ebf832b7d7c1094d081679e8fe1"
-    } 
+  return {
+    address: "0x34df838f26565ebf832b7d7c1094d081679e8fe1",
+    derivedVia: "web3.eth.personal.sign",
+    sig: "0x7b3a647ba936dd8e28fadcc73f1042f826a3bb3842c7ae84d98e4a928b56946320421d19d827831f747be12f47b0de43465a6acba2465332161a4849703889f01c",
+    signedMessage: "localhost:3000 wants you to sign in with your Ethereum account:\n0x34df838F26565EbF832B7d7c1094D081679E8fe1\n\n\nURI: http://localhost:3000/\nVersion: 1\nChain ID: 1\nNonce: r4EmH7FP7oYGtsOSq\nIssued At: 2023-10-21T02:47:27.194Z\nExpiration Time: 2023-10-28T02:47:21.873Z",
+  } 
 }
 function httpsRequest(url) {
   return new Promise((resolve, reject) => {
