@@ -20,30 +20,29 @@ interface FormState {
   subject: string;
   body: string;
 }
-
 function NewMessage(props: any) {
+  //GET LIT
   const [showShareModal, setShowShareModal] = useState(false);
   const [accessControlConditions, setAccessControlConditions] = useState([]);
-  // console.log(props)
-  const authSig: AuthSig = {
+  const client = new LitJsSdk.LitNodeClient({litNetwork: 'cayenne'});
+  client.connect();
+  window.LitNodeClient = client;
+   const authSig: AuthSig = {
     address: props.authSig_address,
     derivedVia: props.authSig_derivedVia,
     sig: props.authSig_sig,
     signedMessage: props.authSig_signedMessage,
   };
-
   const onUnifiedAccessControlConditionsSelected = (shareModalOutput: any) => {
     // do things with share modal output
-    console.log(shareModalOutput);
+    console.log('ddd' + shareModalOutput);
     setAccessControlConditions(shareModalOutput);
   };
-
   const [formData, setFormData] = useState<FormState>({
     recipient: "",
     subject: "",
     body: "",
   });
-
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -53,7 +52,6 @@ function NewMessage(props: any) {
       [name]: value,
     });
   };
-
   async function sendXMTP(uri: string, hash: string, address: string) {
     // Create the client with a `Signer` from your application
     const signer = null;
@@ -64,7 +62,6 @@ function NewMessage(props: any) {
     await conversation.send(uri + "," + hash);
     console.log("message sent via XMTP");
   }
-
   async function sendPush(uri: any, hash: string, address: string) {
     // Creating a random signer from a wallet, ideally this is the wallet you will connect
     const signer = null;
@@ -94,7 +91,6 @@ function NewMessage(props: any) {
     console.log("uri:", uri);
     return cid;
   }
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const senderDID = "1234";
@@ -108,7 +104,6 @@ function NewMessage(props: any) {
         },
       ],
     };
-
     const currentAccessControlConditions = accessControlConditions;
     console.log(currentAccessControlConditions);
     const recipientDID = "1234";
@@ -136,7 +131,6 @@ function NewMessage(props: any) {
       ],
       // ... other properties as per FHIR spec.
     };
-
     const communication: Communication = {
       resourceType: "Communication",
       status: "completed",
@@ -144,12 +138,10 @@ function NewMessage(props: any) {
       payload: [{ contentString: formData.body }],
       // ... other properties as per FHIR spec.
     };
-
     // Serialize the resources. This step may vary based on the specifics of your implementation.
     const serializedMessageHeader = JSON.stringify(messageHeader);
     const serializedCommunication = JSON.stringify(communication);
     const serializedMessage = serializedMessageHeader + serializedCommunication;
-
     //const base64Sig = window.btoa(JSON.stringify(authSig)); // Encode
     const base64Sig = "1234";
     // Construct the FHIR Signature objects.
@@ -174,9 +166,7 @@ function NewMessage(props: any) {
       sigFormat: "application/signature+json",
       data: base64Sig, // The actual signature content, base64 encoded.
     };
-
     const uuid = v4();
-
     // Construct the Bundle with the signed resources.
     const bundle: Bundle = {
       resourceType: "Bundle",
@@ -196,52 +186,26 @@ function NewMessage(props: any) {
         },
       ],
     };
-
     console.log("Prepared and signed FHIR Bundle", bundle);
-
     const blob = new Blob([bundle], {
       type: "application/json",
     });
-
     console.log("created blob");
-    const chainIdString = "ethereum";
+    const chainIdString = "ethereum";   
 
-    // async encrypt(message: string) {
-    //   if (!this.litNodeClient) {
-    //     await this.connect()
-    //   }
-
-    //   const authSig = await LitJsSdk.checkAndSignAuthMessage({ chain })
-    //   const { encryptedString, symmetricKey } = await LitJsSdk.encryptString(message)
-
-    //   const encryptedSymmetricKey = await window.litNodeClient.saveEncryptionKey({
-    //     accessControlConditions,
-    //     symmetricKey,
-    //     authSig,
-    //     chain,
-    //   })
-
-    //   return {
-    //     encryptedString,
-    //     encryptedSymmetricKey: LitJsSdk.uint8
-    //   }
-
-    if (!this.litNodeClient) {
-      await this.connect();
-    }
-    const encBlob = await LitJsSdk.encryptFile(
+    const { ciphertext, dataToEncryptHash } = await LitJsSdk.encryptFile(
       {
         // accessControlConditions: accessControlConditions,
-        accessControlConditions: [accessControlConditions],
+        accessControlConditions: currentAccessControlConditions ,
         authSig: authSig,
-        chain: "ethereum",
+        chain: chainIdString,
         file: blob,
       },
-      LitNodeClient.connnecta
+      window.LitNodeClient 
     );
-    const hash = encBlob.dataToEncryptHash;
+    const hash = dataToEncryptHash;
     console.log("executed encytption with lit:" + hash);
-    const encFile = encBlob.ciphertext;
+    const encFile = ciphertext;
     console.log("File encrypted with Lit protocol:" + encFile);
     if (encFile != null) {
       // Prepare files to upload to IPFS
@@ -249,31 +213,30 @@ function NewMessage(props: any) {
       const files = [new File([encFile], "Bundle/" + uuid)];
       const uri = await uploadFiletoIPFS(uuid, files);
       //Send PushNotification via Push Protocol
+      //Get the address from the access control condition
       try {
         await sendXMTP(
           uri,
           hash,
           currentAccessControlConditions.entries.toString()
         );
-        // try {
-        //   await sendPush(
-        //     uri,
-        //     hash,
-        //     currentAccessControlConditions.entries.toString()
-        //   );
-        // } catch (e) {
-        //   console.log(e);
-        // }
+        try {
+           await sendPush(
+             uri,
+             hash,
+             currentAccessControlConditions.entries.toString()
+           );
+         } catch (e) {
+           console.log(e);
+        }
       } catch (e) {
         console.log(e);
       }
     }
   };
-
   async function getAddressfromDID(did: any) {
     return ""; //Need to figure this out.
   }
-
   return (
     <form
       className="bg-white shadow-md rounded px-8 pt-8 pb-8 mb-4"
@@ -356,5 +319,4 @@ function NewMessage(props: any) {
     </form>
   );
 }
-
 export default NewMessage;
