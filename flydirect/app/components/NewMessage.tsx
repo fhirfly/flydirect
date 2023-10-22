@@ -15,6 +15,7 @@ import { makeStorageClient } from "../hooks/useIpfs";
 import ShareModal from "lit-share-modal-v3";
 //import { PushAPI } from '@pushprotocol/restapi'
 import type { AuthSig } from "@lit-protocol/types";
+import Modal from "@/app/components/modal";
 interface FormState {
   recipient: string;
   subject: string;
@@ -23,6 +24,7 @@ interface FormState {
 function NewMessage(props: any) {
   //GET LIT
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showFlyModal, setShowFlyModal] = useState(false);
   const [accessControlConditions, setAccessControlConditions] = useState([]);
   const client = new LitJsSdk.LitNodeClient({litNetwork: 'cayenne'});
   client.connect();
@@ -238,6 +240,7 @@ function NewMessage(props: any) {
     return ""; //Need to figure this out.
   }
   return (
+      <div>
     <form
       className="bg-white shadow-md rounded px-8 pt-8 pb-8 mb-4"
       onSubmit={handleSubmit}
@@ -309,14 +312,30 @@ function NewMessage(props: any) {
           </div>
         )}
       </div>
-
+      <div className="inline-flex rounded-md shadow-sm px-8 pt-8 pb-8 mb-4">
       <button
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
         type="submit"
       >
-        Send Message
+        Send XMTP
       </button>
+      <button
+          className="bg-pink-500 hover:bg-pink-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          type="submit"
+      >
+        Send Push
+      </button>
+      <button
+          onClick={() => setShowFlyModal(true)}
+          className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          type="button"
+      >
+        Send Fly
+      </button>
+      </div>
     </form>
+        <Modal show={showFlyModal}/>
+  </div>
   );
 }
 export default NewMessage;
