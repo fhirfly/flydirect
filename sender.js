@@ -1,6 +1,5 @@
 import chokidar from 'chokidar';
 import fs from 'fs';
-import path from 'path';
 import { Web3Storage, File} from 'web3.storage';
 import LitJsSdk from '@lit-protocol/lit-node-client';
 import { v4 } from "uuid";
@@ -15,6 +14,7 @@ const litNodeClient =new LitJsSdk.LitNodeClient({
 function makeStorageClient() {
   return new Web3Storage({ token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkaWQ6ZXRocjoweDc0QTVkZGY1NDBEN0ZGRTQxY0I1Y2ZhNWNGNzk1NkQ4ZDhiOTUxRWEiLCJpc3MiOiJ3ZWIzLXN0b3JhZ2UiLCJpYXQiOjE2OTAyMTc0ODg5NDUsIm5hbWUiOiJmaGlyZmx5In0.BVDQuzdmQLQjGyE3yoMwP4eZ3VbDaZQZPoQHEFz-1ws' }); // replace with your actual token
 }
+
 // Function to connect to the LIT network
 const connectToLit = async () => {
   try {
@@ -33,40 +33,40 @@ function obtainAuthSig(){
         address: "0x75341449dd0e8d696ca09ed4996a637d2cf1ec57"
         } 
 }
+// Start the connection to the LIT network
+await connectToLit();
+
+const authSig = await obtainAuthSig();
+if (!authSig) {
+  throw new Error('AuthSig is required for encryption');
+}
 // Function to encrypt the file using LIT Protocol and upload to IPFS
 const encryptAndUploadFile = async (filePath, uuid) => {
   try {
-    // Start the connection to the LIT network
-    await connectToLit();
-
-    const authSig = await obtainAuthSig();
-    if (!authSig) {
-      throw new Error('AuthSig is required for encryption');
-    }
+    
     // Read the file's content
-    const sFHIR = JSON.stringify(fs.readFileSync(filePath, 'utf8')); // or 'binary' if the file is not a text file
-    console.log(sFHIR)
+    const fileFHIR = fs.readFileSync(filePath, 'utf8'); // or 'binary' if the file is not a text file
     // Specify your access control conditions here
-    const accessControlConditions = [
-      {
-        contractAddress: "",
-        standardContractType: "",
-        chain: "ethereum",
-        method: "eth_getBalance",
-        parameters: [":userAddress", "latest"],
-        returnValueTest: {
-          comparator: ">=",
-          value: "1000000000000", // 0.000001 ETH
-        },
+
+    const accessControlConditions = [{
+      chain: "ethereum",
+      conditionType: "evmBasic",
+      contractAddress: "",
+      method: "",
+      parameters: [':userAddress'],
+      returnValueTest: {
+        comparator: '=', 
+        value: '0x34df838f26565ebf832b7d7c1094d081679e8fe1'
       },
-    ];
-    const blob = new Blob([sFHIR], { type: "application/json" });
+    standardContractType: ""
+    }];
+    const blob = new Blob([fileFHIR], { type: "application/json" });
     console.log("created blob");
     const chainIdString = "ethereum" 
     const encBlob = await LitJsSdk.encryptFile( {
       accessControlConditions,
       authSig,
-      chain: 'ethereum',
+      chain: chainIdString,
       file: blob,
       },
       litNodeClient,

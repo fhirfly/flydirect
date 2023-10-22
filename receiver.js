@@ -7,6 +7,7 @@ import * as PushAPI from "@pushprotocol/restapi";
 import { Client } from '@xmtp/xmtp-js';
 import { ethers } from 'ethers'
 import https from 'https';
+import path from 'path'
 
 // Initialize the Lit client
 const litNodeClient =new LitJsSdk.LitNodeClient({
@@ -41,6 +42,12 @@ function obtainAuthSig(){
     signedMessage: "localhost:3000 wants you to sign in with your Ethereum account:\n0x34df838F26565EbF832B7d7c1094D081679E8fe1\n\n\nURI: http://localhost:3000/\nVersion: 1\nChain ID: 1\nNonce: r4EmH7FP7oYGtsOSq\nIssued At: 2023-10-21T02:47:27.194Z\nExpiration Time: 2023-10-28T02:47:21.873Z",
   } 
 }
+    // Start the connection to the LIT network
+    await connectToLit();
+    const authSig = await obtainAuthSig();
+    if (!authSig) {
+      throw new Error('AuthSig is required for decryption');
+    }
 function httpsRequest(url) {
   return new Promise((resolve, reject) => {
     https.get(url, (resp) => {
@@ -62,39 +69,33 @@ function httpsRequest(url) {
   });
 }
 
-
 // Usage
 // Function to download from upload to IPFS and decrypt the file using LIT Protocol and 
 const DownloadandDecryptFile = async (url, hash) => {
   try {  
-    // Start the connection to the LIT network
-    await connectToLit();
-    const authSig = await obtainAuthSig();
-    if (!authSig) {
-      throw new Error('AuthSig is required for decryption');
-    }
+
     // Specify your access control conditions here
-    const accessControlConditions = [
-        {
-          contractAddress: "",
-          standardContractType: "",
-          chain: "ethereum",
-          method: "eth_getBalance",
-          parameters: [":userAddress", "latest"],
-          returnValueTest: {
-            comparator: ">=",
-            value: "1000000000000", // 0.000001 ETH
-          },
-        },
-    ];
+    const accessControlConditions = [{
+      chain: "ethereum",
+      conditionType: "evmBasic",
+      contractAddress: "",
+      method: "",
+      parameters: [':userAddress'],
+      returnValueTest: {
+        comparator: '=', 
+        value: '0x34df838f26565ebf832b7d7c1094d081679e8fe1'
+      },
+    standardContractType: ""
+    }];
     // Download file from IPFS
     console.log('create ipfs client');
     const ipfsClient = makeStorageClient();
     console.log('get IPFS file at cid:' + url)
     const data = await ipfsClient.get(url);
     console.log(`Got a response! [${data.status}] ${data.statusText}`)
-    if (!data.ok) {
-      throw new Error(`failed to get ${url} - [${data.status}] ${data.statusText}`)
+    if (!data.status==200) {
+      console.log (`failed to get ${url} - [${data.status}] ${data.statusText}`)
+      return;
     }
   
     // unpack File objects from the response
@@ -103,12 +104,15 @@ const DownloadandDecryptFile = async (url, hash) => {
       console.log(`${file.cid} --  ${file.size}`)
       // Each `file` object contains `name` and `content` properties
       const fileName = file.name;     
-      const dWebLinkURL2 = 'https://' + file.cid + '.ipfs.dweb.link/' + fileName;
-      console.log(dWebLinkURL2)
-const dWebLinkURL = 'https://bafybeig5julludbtmgfrvihkrjl7yzsx4wywgptylzpwtbrrixwu6vugrq.ipfs.dweb.link/Bundle/c1cafdef-63e9-4c86-bd84-367ecaf34dc4';
+      const dWebLinkURL = 'https://' + url + '.ipfs.dweb.link/' + fileName;
+      console.log(dWebLinkURL)      
       // Example usage:      
       const response = await httpsRequest(dWebLinkURL)
-      console.log("fetched file");     
+      console.log("fetched document:" + response);
+      if(response.includes('failed to resolve')){
+        console.log("failed to resolve") 
+        return;
+      }     
       const chainIdString = "ethereum" 
       console.log("decrypting: " + fileName)
       const dc_AuthSig = authSig
@@ -117,19 +121,30 @@ const dWebLinkURL = 'https://bafybeig5julludbtmgfrvihkrjl7yzsx4wywgptylzpwtbrrix
           ciphertext: response,          
           dataToEncryptHash: hash,
           accessControlConditions: accessControlConditions,
-          chain: 'ethereum',
+          chain: chainIdString ,
           authSig: dc_AuthSig,
       },
       litNodeClient,
       );
+      const decryptString = await LitJsSdk.decryptToString( {
+        ciphertext: response,          
+        dataToEncryptHash: hash,
+        accessControlConditions: accessControlConditions,
+        chain: chainIdString ,
+        authSig: dc_AuthSig,
+    },
+    litNodeClient,
+    );
       console.log('File decrypted with Lit protocol');
-      const outputPath = path.join(__dirname, 'out', decryptBlob.fileName);
+      console.log(decryptString )
+
+      const outputPath = './out/' + fileName ;
       // Write the decrypted file to the 'out' directory
-      fs.writeFile(outputPath, decryptBlob.file, (err) => {
+      fs.writeFile(outputPath, decryptBlob, (err) => {
         if (err) {
           console.error('Failed to write decrypted file:', err);
         } else {
-          console.log(`Decrypted file has been saved in 'out' directory with name: ${decryptBlob.fileName}`);
+          console.log(`Decrypted file has been saved in 'out' directory with name: ${fileName}`);
         }
       }); 
       
@@ -137,7 +152,7 @@ const dWebLinkURL = 'https://bafybeig5julludbtmgfrvihkrjl7yzsx4wywgptylzpwtbrrix
        
   }
   catch (error) {
-        console.error('Failed to encrypt or store file:', error);
+        console.log('Failed to encrypt or store file:', error);
   }
 }
 function readFileContents(file) {
@@ -185,8 +200,10 @@ const listenAndProcessXmTpMessages = async () => {
     const bafyhash = messages[i].content.split(",")[0]
     console.log("hash: " + hash)
     console.log("bafyHash: " + bafyhash)
+    if (bafyhash != 'gm'){ //ignore certain messages
     // Now you can call your function to download, decrypt, etc.
-    await DownloadandDecryptFile(bafyhash, hash); // Make sure this function is properly defined and imported
+      await DownloadandDecryptFile(bafyhash, hash); // Make sure this function is properly defined and imported
+    }
   }
 }
 // Main function to start the process
